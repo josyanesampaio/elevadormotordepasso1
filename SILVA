@@ -1,0 +1,229 @@
+*Dispositivos Periféricos
+Josyane da Silva Sampaio
+
+Com base na planta virtyal do elevador, projetar um sistema de funcionamento para controlar o andar do elevador através de três botões (T,1,2)
+sem usar a realimentação pela serial, ou seja, armazenando a posição do elevador em variável independente.
+
+*/
+
+//Parâmetros iniciais PIC e Serial
+#include <18F4550.h>
+#fuses HS, CPUDIV1,PLL5,USBDIV
+#use delay(clock=20000000)
+#use rs232(baud=9600, xmit=PIN_C6, rcv=PIN_C7)
+//motor 288yj-48 possui 2048 passos por royação ou 0,175º por passo
+
+#byte   portd = 0xF83 
+#define Button_Floor2   pin_b2   //Botao para subir elevador 2 andar
+#define Button_Floor1   pin_b1   //Botao para subir elevador 1 andar
+#define Button_Terreo   pin_b0   //Botao para o terreo   
+
+int8 floorID = 2; // Variável para ler o andar (Inicia no andar 2)
+
+//dividido por 100 devido passos no teste do simulador
+int16 pulsesMotor       = 39;//12; pulsos total do motor, pois começa no second_floor
+int16  first_floor      = 20;//56; 7823/4; equivalente a 6m - motor de 4 polos
+int16  second_floor     = 39;//12; 15646/4; equivalente a 12m - motor de 4 polos
+
+int temp = 2; //tempo= 2ms => 2048*0,002=4,096 segundos (período do motor)
+
+
+void main()
+{
+   set_tris_d(0x00);
+   set_tris_b(0xFF);
+   port_b_pullups (true);
+  
+   
+
+   while(1)
+   {
+      if((!input(Button_Terreo))&&(input(Button_Floor1))&&(input(Button_Floor2)))// Botão do terreo pressionado
+      {
+        switch(floorID)
+        {
+         case 0://Caso esteja no terro para p terro faz nada, abre a porta
+            printf("a\r\n"); //Abrir a porta
+            pulsesMotor = 0;
+            //button_0flag = 0;
+            break;
+         case 1://Caso esteja no andar 1 e vai para o terreo
+            printf("f\r\n");
+            while(pulsesMotor > 0)
+            {
+               portd=0b10010000;
+               delay_ms(temp);
+               printf("d\r\n");
+               portd=0b00110000;
+               delay_ms(temp);
+               printf("d\r\n");
+               portd=0b01100000;
+               delay_ms(temp);
+               printf("d\r\n");
+               portd=0b11000000;
+               delay_ms(temp);
+               printf("d\r\n");
+               pulsesMotor--;
+            }
+            printf("a\r\n");
+            floorID = 0;
+            //button_0flag = 0;
+            pulsesMotor = 0;
+
+            break;
+         case 2://Caso esteja no andar 2 e vá para o terreo
+            printf("f\r\n");
+            while(pulsesMotor > 0)
+            {
+               portd=0b10010000;
+               delay_ms(temp); 
+               printf("d\r\n");
+               portd=0b00110000;
+               delay_ms(temp);
+               printf("d\r\n");
+               portd=0b01100000;
+               delay_ms(temp);
+               printf("d\r\n");
+               portd=0b11000000;
+               printf("d\r\n");
+               delay_ms(temp);
+               pulsesMotor--;
+            }
+            printf("a\r\n");
+            floorID = 0;
+            //button_0flag = 0;
+            pulsesMotor = 0;
+
+            break;
+         default:
+            break;
+        }
+      }//Se o botão térreo estiver pressionado
+        
+      if((input(Button_Terreo))&&(!input(Button_Floor1))&&(input(Button_Floor2)))//Botão do andar 01 pressionado
+      {
+        switch(floorID)
+        {
+         case 0://Caso esteja no terreo para para ir para o andar 01: sobe
+            printf("f\r\n");
+            while(pulsesMotor < first_floor)
+            {
+               portd=0b11000000;
+               printf("s\r\n");
+               delay_ms(temp);
+               portd=0b01100000;
+               printf("s\r\n");
+               delay_ms(temp);
+               portd=0b00110000;
+               printf("s\r\n");
+               delay_ms(temp);
+               portd=0b10010000;
+               printf("s\r\n");
+               delay_ms(temp); 
+               pulsesMotor++;
+            }
+            printf("a\r\n");
+            floorID = 1;
+            //button_1flag = 0;
+            pulsesMotor = first_floor;
+            break;
+         case 1://Caso esteja no andar 1 para o andar 1: Faz nada
+            printf("a\r\n"); //Abrir a porta
+            pulsesMotor = first_floor;
+            //button_1flag = 0;
+            break;
+
+         case 2://Caso esteja no andar 2 para o andar 1
+             printf("f\r\n");
+            while(pulsesMotor > first_floor)
+            {
+               portd=0b10010000;
+               printf("d\r\n");
+               delay_ms(temp);  
+               portd=0b00110000;
+               printf("d\r\n");
+               delay_ms(temp);
+               portd=0b01100000;
+               printf("d\r\n");
+               delay_ms(temp);
+               portd=0b11000000;
+               printf("d\r\n");
+               delay_ms(temp);
+               pulsesMotor--;
+            }
+            printf("a\r\n");
+            floorID = 1;
+            //button_1flag = 0;
+            pulsesMotor = first_floor;
+
+            break;
+         default:
+            break;
+        }
+      }//Se o botão do andar 01 estiver pressionado
+      
+      if((input(Button_Terreo))&&(input(Button_Floor1))&&(!input(Button_Floor2)))//Apertou o botão do andar 2 
+      {
+        switch(floorID)
+        {
+         case 0://Caso esteja no terreo para ir para o andar 2: sobe
+            printf("f\r\n");
+            while(pulsesMotor < second_floor)
+            {
+               portd=0b11000000;
+               printf("s\r\n");
+               delay_ms(temp);
+               portd=0b01100000;
+               printf("s\r\n");
+               delay_ms(temp);
+               portd=0b00110000;
+               printf("s\r\n");
+               delay_ms(temp);
+               portd=0b10010000;
+               printf("s\r\n");
+               delay_ms(temp); 
+               pulsesMotor++;
+            }
+            printf("a\r\n");
+            floorID = 2;
+            //button_2flag = 0;
+            pulsesMotor = second_floor;
+            break;
+         case 1://Caso esteja no andar 1 para ir para o andar 2: Sobe
+            printf("f\r\n");
+            while(pulsesMotor < second_floor)
+            {
+               portd=0b11000000;
+               printf("s\r\n");
+               delay_ms(temp);
+               portd=0b01100000;
+               printf("s\r\n");
+               delay_ms(temp);
+               portd=0b00110000;
+               printf("s\r\n");
+               delay_ms(temp);
+               portd=0b10010000;
+               printf("s\r\n");
+               delay_ms(temp); 
+               pulsesMotor++;
+            }
+            printf("a\r\n");
+            floorID = 2;
+            //button_2flag = 0;
+            pulsesMotor = second_floor;
+            break;
+
+         case 2://Caso esteja no andar 2 para ir para o andar 01
+             printf("a\r\n"); //Abrir a porta
+            pulsesMotor = second_floor;
+            //button_2flag = 0;
+            break;
+         default:
+            break;
+        }
+      }//Se o botão do andar 2 estiver pressionado
+      
+   }
+}
+
+   
